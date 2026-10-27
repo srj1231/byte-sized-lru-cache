@@ -1,5 +1,6 @@
 package com.saumya.lld.byte_sized_lru;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -7,28 +8,29 @@ class LRUCache<K, V> {
 
     private class Node {
         K key;
-        V value;
+        byte[] value;
         Node prev, next;
 
-        Node(K key, V value) {
+        Node(K key, byte[] value) {
             this.key = key;
             this.value = value;
         }
     }
 
-    private final int capacity;
+    private final long maxBytes;
+    private long currentBytes = 0;
     private final Map<K, Node> map = new HashMap<>();
     private final Node head = new Node(null, null); // most recent side
     private final Node tail = new Node(null, null); // least recent side
 
-    public LRUCache(int capacity) {
-        if (capacity <= 0) throw new IllegalArgumentException("capacity must be > 0");
-        this.capacity = capacity;
+    public LRUCache(long maxBytes) {
+        if (maxBytes <= 0) throw new IllegalArgumentException("maxBytes must be > 0");
+        this.maxBytes = maxBytes;
         head.next = tail;
         tail.prev = head;
     }
 
-    public synchronized V get(K key) {
+    public synchronized byte[] get(K key) {
         Node node = map.get(key);
         if (node == null) return null;
         remove(node);
@@ -36,22 +38,29 @@ class LRUCache<K, V> {
         return node.value;
     }
 
-    public synchronized void put(K key, V value) {
-        Node node = map.get(key);
-        if (node != null) {
-            node.value = value;
-            remove(node);
-            addToFront(node);
-            return;
+    public synchronized boolean put(K key, byte[] value) {
+        long size = value.length;
+        if (size > maxBytes) return false;       // reject items that can never fit
+
+        Node existing = map.get(key);
+        if (existing != null) {   // update adjusts by delta
+            currentBytes -= existing.value.length;
+            remove(existing);
+            map.remove(key);
         }
-        if (map.size() == capacity) {
+
+        while (currentBytes + size > maxBytes) { // evict until it fits
             Node lru = tail.prev;
             remove(lru);
             map.remove(lru.key);
+            currentBytes -= lru.value.length;
         }
-        Node newNode = new Node(key, value);
-        map.put(key, newNode);
-        addToFront(newNode);
+
+        Node node = new Node(key, value);
+        map.put(key, node);
+        addToFront(node);
+        currentBytes += size;
+        return true;
     }
 
     private void remove(Node node) {
@@ -66,6 +75,10 @@ class LRUCache<K, V> {
         head.next = node;
     }
 
+    public synchronized long usedBytes() {
+        return currentBytes;
+    }
+
     @Override
     public synchronized String toString() {
         StringBuilder sb = new StringBuilder("[");
@@ -73,12 +86,12 @@ class LRUCache<K, V> {
         boolean first = true;
         while (current != tail) {
             if (!first) sb.append(", ");
-            sb.append(current.key).append(" = ").append(current.value);
+            sb.append(current.key).append(" = ").append(Arrays.toString(current.value));
 
             first = false;
             current = current.next;
         }
         sb.append("]");
-        return sb.toString();
+        return sb + " (" + usedBytes() + " bytes)";
     }
 }

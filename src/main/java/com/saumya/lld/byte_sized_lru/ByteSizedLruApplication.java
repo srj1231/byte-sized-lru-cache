@@ -7,40 +7,54 @@ import java.util.concurrent.TimeUnit;
 public class ByteSizedLruApplication {
 
 	public static void main(String[] args) throws InterruptedException {
-		LRUCache<Integer, String> cache = new LRUCache<>(3);
+		// Test 1: Basic byte-sized LRU operations
+		System.out.println("=== Test 1: Basic Operations ===");
+		LRUCache<Integer, byte[]> cache = new LRUCache<>(20); // 20 bytes max
 
-		cache.put(1, "A");
-		cache.put(2, "B");
-		cache.put(3, "C");
-		System.out.println(cache);               // [3=C, 2=B, 1=A]
+		cache.put(1, new byte[]{1});       // 1 byte
+		cache.put(2, new byte[]{2, 2});    // 2 bytes
+		cache.put(3, new byte[]{3, 3, 3}); // 3 bytes
+		System.out.println(cache);          // Should show 6 bytes used
 
-		System.out.println(cache.get(1));        // A
-		System.out.println(cache);               // [1=A, 3=C, 2=B]
+		System.out.println("Get key 1: " + java.util.Arrays.toString(cache.get(1)));
+		System.out.println(cache);          // Key 1 moved to front
 
-		cache.put(4, "D");                       // evicts key 2
-		System.out.println(cache);               // [4=D, 1=A, 3=C]
-		System.out.println(cache.get(2));        // null
+		cache.put(4, new byte[10]);         // 10 bytes - should evict to make space
+		System.out.println(cache);          // Check eviction
 
-		cache.put(3, "C2");                      // update + move to front
-		System.out.println(cache);               // [3=C2, 4=D, 1=A]
+		// Test 2: Reject item larger than maxBytes
+		System.out.println("\n=== Test 2: Reject Oversized Item ===");
+		LRUCache<Integer, byte[]> cache2 = new LRUCache<>(10);
+		boolean result = cache2.put(1, new byte[20]); // 20 bytes > 10 max
+		System.out.println("Put 20-byte item in 10-byte cache: " + result);
+		System.out.println(cache2);
 
-		cache.put(5, "E");                       // evicts key 1
-		System.out.println(cache);               // [5=E, 3=C2, 4=D]
+		// Test 3: Update existing key
+		System.out.println("\n=== Test 3: Update Existing Key ===");
+		LRUCache<Integer, byte[]> cache3 = new LRUCache<>(15);
+		cache3.put(1, new byte[]{1});       // 1 byte
+		cache3.put(2, new byte[]{2, 2});    // 2 bytes
+		System.out.println(cache3);
+		cache3.put(1, new byte[5]);          // Update key 1 to 5 bytes (delta +4)
+		System.out.println(cache3);          // Should show 7 bytes total
 
-		// Concurrent test: 8 threads performing 100k operations each
+		// Test 4: Concurrent access
+		System.out.println("\n=== Test 4: Concurrent Access ===");
 		ExecutorService pool = Executors.newFixedThreadPool(8);
-		LRUCache<Integer, Integer> c = new LRUCache<>(100);
+		LRUCache<Integer, byte[]> c = new LRUCache<>(10_000);
 		for (int t = 0; t < 8; t++) {
 			pool.submit(() -> {
 				for (int i = 0; i < 100_000; i++) {
-					c.put(i % 500, i);  // put with 500 unique keys
-					c.get(i % 500);     // get the same keys
+					byte[] data = new byte[(i % 50) + 1]; // 1-50 bytes
+					c.put(i % 500, data);
+					c.get(i % 500);
 				}
 			});
 		}
 		pool.shutdown();
 		pool.awaitTermination(1, TimeUnit.MINUTES);
-		System.out.println("done, no exception");
+		System.out.println("Concurrent test done, no exception");
+		System.out.println("Final cache state: " + c);
 	}
 
 }
