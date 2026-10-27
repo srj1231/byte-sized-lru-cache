@@ -1,13 +1,27 @@
 package com.saumya.lld.byte_sized_lru;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-@SpringBootApplication
 public class ByteSizedLruApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(ByteSizedLruApplication.class, args);
+		LRUCache<Integer, String> cache = new LRUCache<>(3);
+
+		cache.put(1, "A");
+		cache.put(2, "B");
+		cache.put(3, "C");
+		System.out.println(cache);               // [3=C, 2=B, 1=A]
+
+		System.out.println(cache.get(1));        // A
+		System.out.println(cache);               // [1=A, 3=C, 2=B]
+
+		cache.put(4, "D");                       // evicts key 2
+		System.out.println(cache);               // [4=D, 1=A, 3=C]
+		System.out.println(cache.get(2));        // null
+
+		cache.put(3, "C2");                      // update + move to front
+		System.out.println(cache);               // [3=C2, 4=D, 1=A]
+
+		cache.put(5, "E");                       // evicts key 1
+		System.out.println(cache);               // [5=E, 3=C2, 4=D]
 	}
 
 }
