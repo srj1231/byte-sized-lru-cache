@@ -28,7 +28,7 @@ class LRUCache<K, V> {
         tail.prev = head;
     }
 
-    public V get(K key) {
+    public synchronized V get(K key) {
         Node node = map.get(key);
         if (node == null) return null;
         remove(node);
@@ -36,7 +36,7 @@ class LRUCache<K, V> {
         return node.value;
     }
 
-    public void put(K key, V value) {
+    public synchronized void put(K key, V value) {
         Node node = map.get(key);
         if (node != null) {
             node.value = value;
@@ -67,7 +67,7 @@ class LRUCache<K, V> {
     }
 
     @Override
-    public String toString() {
+    public synchronized String toString() {
         StringBuilder sb = new StringBuilder("[");
         Node current = head.next;
         boolean first = true;
